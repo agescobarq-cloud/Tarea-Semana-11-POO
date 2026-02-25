@@ -1,1 +1,0 @@
-# Formato: id|nombre|cantidad|precio
