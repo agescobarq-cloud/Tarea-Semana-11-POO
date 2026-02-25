@@ -1,23 +1,15 @@
 class Producto:
     """
-    Clase que representa un producto en el inventario de la tienda.
-    Contiene los atributos básicos y métodos para acceder/modificarlos (getters y setters).
+    Representa un producto en el inventario de la tienda.
+    Utiliza encapsulamiento con propiedades para controlar acceso a atributos.
     """
-
     def __init__(self, id_producto: int, nombre: str, cantidad: int, precio: float):
-        """
-        Constructor de la clase Producto.
-
-        Args:
-            id_producto (int): Identificador único del producto (debe ser único en el inventario)
-            nombre (str): Nombre del producto
-            cantidad (int): Cantidad disponible en stock (debe ser >= 0)
-            precio (float): Precio unitario del producto (debe ser > 0)
-        """
         if cantidad < 0:
             raise ValueError("La cantidad no puede ser negativa")
         if precio <= 0:
             raise ValueError("El precio debe ser mayor que cero")
+        if not nombre.strip():
+            raise ValueError("El nombre no puede estar vacío")
 
         self._id = id_producto
         self._nombre = nombre.strip()
@@ -43,22 +35,22 @@ class Producto:
 
     # Setters
     @nombre.setter
-    def nombre(self, nuevo_nombre: str):
-        self._nombre = nuevo_nombre.strip()
+    def nombre(self, valor: str):
+        if not valor.strip():
+            raise ValueError("El nombre no puede estar vacío")
+        self._nombre = valor.strip()
 
     @cantidad.setter
-    def cantidad(self, nueva_cantidad: int):
-        if nueva_cantidad < 0:
+    def cantidad(self, valor: int):
+        if valor < 0:
             raise ValueError("La cantidad no puede ser negativa")
-        self._cantidad = nueva_cantidad
+        self._cantidad = valor
 
     @precio.setter
-    def precio(self, nuevo_precio: float):
-        if nuevo_precio <= 0:
+    def precio(self, valor: float):
+        if valor <= 0:
             raise ValueError("El precio debe ser mayor que cero")
-        self._precio = nuevo_precio
+        self._precio = valor
 
     def __str__(self) -> str:
-        """Representación legible del producto para mostrar en consola."""
-        return (f"ID: {self._id} | Nombre: {self._nombre:.<30} | "
-                f"Cantidad: {self._cantidad:>4} | Precio: ${self._precio:>7.2f}")
+        return f"ID: {self._id:>4} | {self._nombre:<35} | Cant: {self._cantidad:>4} | ${self._precio:>8.2f}"

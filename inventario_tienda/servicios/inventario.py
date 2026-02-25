@@ -1,112 +1,113 @@
 from modelos.producto import Producto
-from typing import List, Optional
+from typing import Dict, List, Optional
 import os
 
 class Inventario:
     """
-    Clase que gestiona la colección de productos con persistencia en archivo de texto.
-    Cada cambio (agregar, eliminar, actualizar) se refleja inmediatamente en el archivo.
+    Gestiona el inventario usando un diccionario para acceso rápido por ID.
+    Clave: ID (int) → Valor: objeto Producto
+    Implementa persistencia en archivo de texto plano.
     """
-    
-    def __init__(self, archivo: str = "inventario.txt"):
-        self._productos: List[Producto] = []
-        self.archivo = archivo
+    ARCHIVO = "inventario.txt"
+    SEPARADOR = "|"
+
+    def __init__(self):
+        self.productos: Dict[int, Producto] = {}
         self._cargar_desde_archivo()
 
     def _cargar_desde_archivo(self) -> None:
-        """Carga los productos desde el archivo al iniciar el inventario."""
-        if not os.path.exists(self.archivo):
-            print(f"Archivo {self.archivo} no existe → se creará uno nuevo al guardar.")
+        """Carga productos desde archivo al iniciar."""
+        if not os.path.exists(self.ARCHIVO):
+            print(f"→ Archivo {self.ARCHIVO} no encontrado. Se creará uno nuevo al guardar.")
             return
 
         try:
-            with open(self.archivo, 'r', encoding='utf-8') as f:
-                for linea in f:
+            with open(self.ARCHIVO, 'r', encoding='utf-8') as f:
+                for num_linea, linea in enumerate(f, 1):
                     linea = linea.strip()
                     if not linea or linea.startswith('#'):
                         continue
                     try:
-                        id_str, nombre, cant_str, precio_str = linea.split('|', 3)
-                        producto = Producto(
-                            id_producto=int(id_str.strip()),
-                            nombre=nombre.strip(),
-                            cantidad=int(cant_str.strip()),
-                            precio=float(precio_str.strip())
+                        partes = linea.split(self.SEPARADOR, 3)
+                        if len(partes) != 4:
+                            raise ValueError("formato incompleto")
+                        id_str, nombre, cant_str, precio_str = [p.strip() for p in partes]
+                        prod = Producto(
+                            id_producto=int(id_str),
+                            nombre=nombre,
+                            cantidad=int(cant_str),
+                            precio=float(precio_str)
                         )
-                        self._productos.append(producto)
-                    except (ValueError, IndexError) as e:
-                        print(f"Advertencia: línea inválida ignorada → {linea!r} ({e})")
+                        self.productos[prod.id] = prod
+                    except Exception as e:
+                        print(f"Advertencia: línea {num_line} inválida → ignorada ({e}): {linea}")
         except PermissionError:
-            print(f"ERROR: No tienes permiso de lectura en {self.archivo}")
+            print(f"ERROR: Sin permiso para leer {self.ARCHIVO}")
         except Exception as e:
-            print(f"ERROR inesperado al leer {self.archivo}: {e}")
+            print(f"ERROR al cargar {self.ARCHIVO}: {e}")
 
     def _guardar_en_archivo(self) -> bool:
-        """Guarda TODOS los productos actuales en el archivo (sobrescribe)."""
+        """Sobrescribe el archivo con todos los productos actuales."""
         try:
-            with open(self.archivo, 'w', encoding='utf-8') as f:
-                f.write("id|nombre|cantidad|precio\n")  # encabezado opcional
-                for p in sorted(self._productos, key=lambda x: x.id):
-                    f.write(f"{p.id}|{p.nombre}|{p.cantidad}|{p.precio:.2f}\n")
+            with open(self.ARCHIVO, 'w', encoding='utf-8') as f:
+                f.write("# Formato: id|nombre|cantidad|precio\n")
+                for prod in sorted(self.productos.values(), key=lambda p: p.id):
+                    f.write(f"{prod.id}{self.SEPARADOR}{prod.nombre}{self.SEPARADOR}{prod.cantidad}{self.SEPARADOR}{prod.precio:.2f}\n")
             return True
         except PermissionError:
-            print(f"ERROR: No tienes permiso de escritura en {self.archivo}")
+            print(f"ERROR: Sin permiso para escribir en {self.ARCHIVO}")
             return False
         except Exception as e:
-            print(f"ERROR al guardar en {self.archivo}: {e}")
+            print(f"ERROR al guardar {self.ARCHIVO}: {e}")
             return False
 
-    def agregar_producto(self, producto: Producto) -> bool:
-        if any(p.id == producto.id for p in self._productos):
-            return False
-        
-        self._productos.append(producto)
-        if self._guardar_en_archivo():
-            return True
-        else:
-            # rollback básico (opcional)
-            self._productos.remove(producto)
-            return False
+    # ──────────────────────────────────────────────
+    # Métodos requeridos
+    # ──────────────────────────────────────────────
 
-    def eliminar_producto(self, id_producto: int) -> bool:
-        for i, producto in enumerate(self._productos):
-            if producto.id == id_producto:
-                del self._productos[i]
-                if self._guardar_en_archivo():
-                    return True
-                else:
-                    # rollback (poco probable pero buena práctica)
-                    self._productos.insert(i, producto)
-                    return False
+    def agregar(self, producto: Producto) -> bool:
+        """Añade producto nuevo. Retorna False si ID ya existe."""
+        if producto.id in self.productos:
+            return False
+        self.productos[producto.id] = producto
+        return self._guardar_en_archivo()
+
+    def eliminar(self, id_producto: int) -> bool:
+        """Elimina por ID. Retorna True si existía y se eliminó."""
+        if id_producto in self.productos:
+            del self.productos[id_producto]
+            return self._guardar_en_archivo()
         return False
 
-    def actualizar_producto(self, id_producto: int, cantidad: Optional[int] = None, 
-                           precio: Optional[float] = None) -> bool:
-        for producto in self._productos:
-            if producto.id == id_producto:
-                viejo_cantidad = producto.cantidad
-                viejo_precio = producto.precio
-                
-                if cantidad is not None:
-                    producto.cantidad = cantidad
-                if precio is not None:
-                    producto.precio = precio
-                    
-                if self._guardar_en_archivo():
-                    return True
-                else:
-                    # rollback
-                    producto.cantidad = viejo_cantidad
-                    producto.precio = viejo_precio
-                    return False
-        return False
+    def actualizar(self, id_producto: int, cantidad: Optional[int] = None, precio: Optional[float] = None) -> bool:
+        """Actualiza cantidad y/o precio. Retorna True si se encontró y guardó."""
+        if id_producto not in self.productos:
+            return False
+        prod = self.productos[id_producto]
+
+        if cantidad is not None:
+            prod.cantidad = cantidad
+        if precio is not None:
+            prod.precio = precio
+
+        return self._guardar_en_archivo()
 
     def buscar_por_nombre(self, texto: str) -> List[Producto]:
+        """Búsqueda parcial (case-insensitive) por nombre."""
         texto = texto.lower().strip()
-        return [p for p in self._productos if texto in p.nombre.lower()]
+        return [p for p in self.productos.values() if texto in p.nombre.lower()]
 
-    def obtener_todos(self) -> List[Producto]:
-        return sorted(self._productos, key=lambda p: p.id)
+    def mostrar_todos(self) -> None:
+        """Muestra todos los productos ordenados por ID."""
+        if not self.productos:
+            print("  El inventario está vacío.")
+            return
+        print("\n  Listado de productos (ordenado por ID):")
+        print("  " + "-" * 85)
+        for prod in sorted(self.productos.values(), key=lambda p: p.id):
+            print(f"  {prod}")
+        print("  " + "-" * 85)
+        print(f"  Total productos: {len(self.productos)}")
 
-    def esta_vacio(self) -> bool:
-        return len(self._productos) == 0
+    def existe_id(self, id_producto: int) -> bool:
+        return id_producto in self.productos

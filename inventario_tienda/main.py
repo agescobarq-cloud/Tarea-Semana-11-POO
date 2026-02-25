@@ -1,116 +1,128 @@
 from servicios.inventario import Inventario
 from modelos.producto import Producto
 
+def limpiar_pantalla():
+    import os
+    os.system('cls' if os.name == 'nt' else 'clear')
 
-def mostrar_menu():
-    print("\n" + "=" * 50)
-    print("       SISTEMA DE GESTIÓN DE INVENTARIOS")
-    print("=" * 50)
-    print("1. Añadir producto")
-    print("2. Eliminar producto")
-    print("3. Actualizar producto")
-    print("4. Buscar producto por nombre")
-    print("5. Listar todos los productos")
-    print("0. Salir")
-    print("=" * 50)
+def pausar():
+    input("\nPresione Enter para continuar...")
 
-
-def obtener_entero(mensaje: str) -> int:
+def leer_entero(msg: str, min_val: int = None) -> int:
     while True:
         try:
-            return int(input(mensaje))
+            valor = int(input(msg))
+            if min_val is not None and valor < min_val:
+                print(f"  Valor mínimo permitido: {min_val}")
+                continue
+            return valor
         except ValueError:
-            print("¡Error! Debe ingresar un número entero.")
+            print("  Ingrese un número entero válido.")
 
-
-def obtener_float(mensaje: str) -> float:
+def leer_float(msg: str, min_val: float = 0.01) -> float:
     while True:
         try:
-            return float(input(mensaje))
+            valor = float(input(msg))
+            if valor < min_val:
+                print(f"  Valor mínimo permitido: {min_val}")
+                continue
+            return valor
         except ValueError:
-            print("¡Error! Debe ingresar un número decimal válido.")
-
+            print("  Ingrese un número decimal válido.")
 
 def main():
     inventario = Inventario()
 
     while True:
-        mostrar_menu()
-        opcion = input("\nSeleccione una opción: ").strip()
+        limpiar_pantalla()
+        print("=" * 60)
+        print("       SISTEMA DE GESTIÓN DE INVENTARIOS - POO")
+        print("=" * 60)
+        print("  1. Agregar nuevo producto")
+        print("  2. Eliminar producto por ID")
+        print("  3. Actualizar cantidad / precio")
+        print("  4. Buscar productos por nombre")
+        print("  5. Mostrar todos los productos")
+        print("  0. Salir")
+        print("=" * 60)
+
+        opcion = input("\n  Seleccione opción → ").strip()
 
         if opcion == "0":
-            print("\n¡Gracias por usar el sistema! Hasta luego.\n")
+            print("\n  ¡Gracias por usar el sistema!")
             break
 
         elif opcion == "1":
-            print("\n--- AÑADIR NUEVO PRODUCTO ---")
-            id_prod = obtener_entero("ID del producto: ")
-            nombre = input("Nombre del producto: ").strip()
-            while not nombre:
-                print("El nombre no puede estar vacío.")
-                nombre = input("Nombre del producto: ").strip()
-
-            cantidad = obtener_entero("Cantidad en stock: ")
-            precio = obtener_float("Precio unitario ($): ")
+            print("\n  → Agregar producto")
+            while True:
+                id_prod = leer_entero("  ID (número único): ")
+                if inventario.existe_id(id_prod):
+                    print("  ¡Error! ID ya existe.")
+                else:
+                    break
+            nombre = input("  Nombre: ").strip()
+            cantidad = leer_entero("  Cantidad inicial: ", min_val=0)
+            precio = leer_float("  Precio unitario ($): ")
 
             try:
-                nuevo_producto = Producto(id_prod, nombre, cantidad, precio)
-                if inventario.agregar_producto(nuevo_producto):
-                    (f"\nProducto '{nombre}' agregado correctamente y guardado en archivo.")
+                prod = Producto(id_prod, nombre, cantidad, precio)
+                if inventario.agregar(prod):
+                    print(f"\n  ✓ Producto '{nombre}' agregado y guardado correctamente.")
                 else:
-                    print(f"\n¡Error! Ya existe un producto con ID {id_prod} o fallo al guardar en archivo.")
+                    print("\n  ✗ Falló al guardar en archivo.")
             except ValueError as e:
-                print(f"\nError de validación: {e}")
+                print(f"\n  ✗ Error de validación: {e}")
+            pausar()
 
         elif opcion == "2":
-            print("\n--- ELIMINAR PRODUCTO ---")
-            id_prod = obtener_entero("Ingrese el ID del producto a eliminar: ")
-            if inventario.eliminar_producto(id_prod):
-                print("Producto eliminado correctamente y archivo actualizado.")
+            print("\n  → Eliminar producto")
+            id_prod = leer_entero("  ID a eliminar: ")
+            if inventario.eliminar(id_prod):
+                print("  ✓ Producto eliminado y archivo actualizado.")
             else:
-                print("No se encontró producto con ese ID o fallo al guardar cambios.")
+                print("  ✗ No se encontró el ID o falló al guardar.")
+            pausar()
 
         elif opcion == "3":
-            print("\n--- ACTUALIZAR PRODUCTO ---")
-            id_prod = obtener_entero("ID del producto a actualizar: ")
+            print("\n  → Actualizar producto")
+            id_prod = leer_entero("  ID del producto: ")
+            if not inventario.existe_id(id_prod):
+                print("  ✗ No existe producto con ese ID.")
+                pausar()
+                continue
 
-            print("(Deje en blanco o presione Enter si no desea cambiar el valor)")
-            cantidad_str = input("Nueva cantidad: ").strip()
-            precio_str = input("Nuevo precio ($): ").strip()
+            print("  (deje en blanco si no desea cambiar)")
+            cant_str = input("  Nueva cantidad: ").strip()
+            prec_str = input("  Nuevo precio ($): ").strip()
 
-            nueva_cantidad = int(cantidad_str) if cantidad_str else None
-            nuevo_precio = float(precio_str) if precio_str else None
+            nueva_cant = int(cant_str) if cant_str else None
+            nuevo_prec = float(prec_str) if prec_str else None
 
-            if inventario.actualizar_producto(id_prod, nueva_cantidad, nuevo_precio):
-                print("Producto actualizado correctamente y cambios guardados en archivo.")
+            if inventario.actualizar(id_prod, nueva_cant, nuevo_prec):
+                print("  ✓ Producto actualizado y guardado.")
             else:
-                print("No se encontró ningún producto con ese ID.")
+                print("  ✗ Falló al guardar cambios.")
+            pausar()
 
         elif opcion == "4":
-            print("\n--- BUSCAR PRODUCTO POR NOMBRE ---")
-            texto = input("Ingrese parte del nombre a buscar: ").strip()
+            print("\n  → Buscar por nombre")
+            texto = input("  Texto a buscar (parcial): ").strip()
             resultados = inventario.buscar_por_nombre(texto)
-
             if resultados:
-                print(f"\nResultados encontrados ({len(resultados)}):")
-                for prod in resultados:
-                    print(prod)
+                print(f"\n  Encontrados {len(resultados)} producto(s):")
+                for p in resultados:
+                    print(f"  {p}")
             else:
-                print("No se encontraron productos que coincidan.")
+                print("  No se encontraron coincidencias.")
+            pausar()
 
         elif opcion == "5":
-            print("\n--- LISTADO COMPLETO DEL INVENTARIO ---")
-            productos = inventario.obtener_todos()
-            if inventario.esta_vacio():
-                print("El inventario está vacío.")
-            else:
-                for prod in productos:
-                    print(prod)
-                print(f"\nTotal de productos: {len(productos)}")
+            inventario.mostrar_todos()
+            pausar()
 
         else:
-            print("Opción no válida. Intente nuevamente.")
-
+            print("\n  Opción no válida.")
+            pausar()
 
 if __name__ == "__main__":
     main()
